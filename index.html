@@ -1,0 +1,435 @@
+
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multi Number Demo Game</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: Arial, sans-serif;
+      background: #101827;
+      color: white;
+    }
+
+    .game {
+      max-width: 440px;
+      margin: auto;
+      padding: 20px;
+      background: #1e293b;
+      border-radius: 16px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #38bdf8;
+    }
+
+    .balance {
+      text-align: center;
+      padding: 14px;
+      background: #0f172a;
+      border-radius: 10px;
+      font-size: 20px;
+    }
+
+    .hint {
+      color: #cbd5e1;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .numbers {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .number-card {
+      background: #334155;
+      padding: 8px 4px;
+      border-radius: 9px;
+      text-align: center;
+      border: 2px solid transparent;
+    }
+
+    .number-card.selected {
+      border-color: #38bdf8;
+      background: #075985;
+    }
+
+    .number-card button {
+      width: 100%;
+      padding: 9px 0;
+      background: transparent;
+      color: white;
+      font-size: 19px;
+      border: none;
+    }
+
+    .number-card input {
+      width: 100%;
+      min-width: 0;
+      padding: 6px 2px;
+      margin-top: 5px;
+      text-align: center;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .label {
+      display: block;
+      margin: 18px 0 10px;
+      font-weight: bold;
+    }
+
+    .main-btn {
+      width: 100%;
+      padding: 13px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #22c55e;
+      color: #052e16;
+      font-weight: bold;
+      font-size: 17px;
+    }
+
+    .reset-btn {
+      background: #475569;
+      color: white;
+    }
+
+    #timer {
+      text-align: center;
+      color: #facc15;
+      font-size: 34px;
+      margin: 15px;
+    }
+
+    #result {
+      text-align: center;
+      font-size: 23px;
+      font-weight: bold;
+      margin: 15px 0;
+      overflow-wrap: anywhere;
+    }
+
+    .panel {
+      background: #0f172a;
+      border-radius: 9px;
+      padding: 12px;
+      margin-top: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .history-item {
+      border-bottom: 1px solid #475569;
+      padding: 9px 0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    button:disabled,
+    input:disabled {
+      opacity: 0.5;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="game">
+    <h2>🎯 Multi Number Game</h2>
+    <p class="hint">
+      Demo game: sirf virtual credits. Ek round mein
+      kai numbers chuno aur har number par alag bet lagao.
+    </p>
+
+    <div class="balance">
+      Balance: <span id="balance">1000</span> Credits
+    </div>
+
+    <label class="label">Numbers select karo aur bet bharo:</label>
+    <div id="numbers" class="numbers"></div>
+
+    <div class="panel">
+      Total Bet: <b id="totalBet">0</b> Credits
+    </div>
+
+    <button id="start" class="main-btn">10 Second Game Start</button>
+
+    <div id="timer">10</div>
+    <div id="status" class="hint">Numbers select karke bet bharo.</div>
+
+    <div class="panel">
+      Computer Number: <b id="computer">?</b>
+      <div id="result">Result ka intezar hai</div>
+      Total Return: <b id="totalReturn">0</b> Credits
+      <br><br>
+      Net Change: <b id="netChange">0</b> Credits
+    </div>
+
+    <div class="panel">
+      <b>Round History</b>
+      <div id="history">Abhi koi round nahi hua.</div>
+    </div>
+
+    <button id="reset" class="main-btn reset-btn">
+      Reset Demo
+    </button>
+  </div>
+
+  <script>
+    const numbersBox = document.querySelector("#numbers");
+    const balanceText = document.querySelector("#balance");
+    const totalBetText = document.querySelector("#totalBet");
+    const startBtn = document.querySelector("#start");
+    const resetBtn = document.querySelector("#reset");
+    const timerText = document.querySelector("#timer");
+    const statusText = document.querySelector("#status");
+    const computerText = document.querySelector("#computer");
+    const resultText = document.querySelector("#result");
+    const totalReturnText = document.querySelector("#totalReturn");
+    const netChangeText = document.querySelector("#netChange");
+    const historyBox = document.querySelector("#history");
+
+    let balance = 1000;
+    let selectedBets = {};
+    let timer = null;
+    let playing = false;
+    let roundNumber = 0;
+    let history = [];
+
+    function createNumbers() {
+      numbersBox.innerHTML = "";
+
+      for (let i = 1; i <= 10; i++) {
+        const card = document.createElement("div");
+        card.className = "number-card";
+
+        const button = document.createElement("button");
+        button.innerText = i;
+        button.type = "button";
+        button.setAttribute("aria-label", "Number " + i);
+
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "1";
+        input.step = "1";
+        input.placeholder = "Bet";
+        input.inputMode = "numeric";
+        input.setAttribute("aria-label", "Number " + i + " bet");
+
+        button.addEventListener("click", function() {
+          if (playing) return;
+
+          if (selectedBets[i] !== undefined) {
+            delete selectedBets[i];
+            input.value = "";
+            card.classList.remove("selected");
+          } else {
+            input.value = "10";
+            selectedBets[i] = 10;
+            card.classList.add("selected");
+          }
+
+          updateTotal();
+        });
+
+        input.addEventListener("input", function() {
+          if (playing) return;
+
+          if (input.value === "") {
+            delete selectedBets[i];
+            card.classList.remove("selected");
+          } else {
+            selectedBets[i] = Number(input.value);
+            card.classList.add("selected");
+          }
+
+          updateTotal();
+        });
+
+        card.appendChild(button);
+        card.appendChild(input);
+        numbersBox.appendChild(card);
+      }
+    }
+
+    function updateTotal() {
+      let total = 0;
+
+      for (const key in selectedBets) {
+        const amount = selectedBets[key];
+
+        if (Number.isSafeInteger(amount) && amount > 0) {
+          total += amount;
+        }
+      }
+
+      totalBetText.innerText = total;
+      balanceText.innerText = balance;
+    }
+
+    function lockInputs(locked) {
+      document.querySelectorAll(".number-card button").forEach(function(btn) {
+        btn.disabled = locked;
+      });
+
+      document.querySelectorAll(".number-card input").forEach(function(input) {
+        input.disabled = locked;
+      });
+
+      startBtn.disabled = locked;
+    }
+
+    function showHistory(item) {
+      history.unshift(item);
+      history = history.slice(0, 10);
+
+      historyBox.innerHTML = "";
+
+      history.forEach(function(line) {
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.innerText = line;
+        historyBox.appendChild(div);
+      });
+    }
+
+    function finishRound(bets, totalBet) {
+      playing = false;
+
+      const computerNumber = Math.floor(Math.random() * 10) + 1;
+      computerText.innerText = computerNumber;
+
+      let winningBet = bets[computerNumber] || 0;
+      let totalReturn = winningBet * 8;
+      let netChange = totalReturn - totalBet;
+
+      balance += totalReturn;
+      balanceText.innerText = balance;
+      totalReturnText.innerText = totalReturn;
+      netChangeText.innerText =
+        (netChange > 0 ? "+" : "") + netChange;
+
+      if (winningBet > 0) {
+        resultText.innerText = "🎉 You Win!";
+        resultText.style.color = "#4ade80";
+      } else {
+        resultText.innerText = "😔 Sorry!";
+        resultText.style.color = "#f87171";
+      }
+
+      statusText.innerText =
+        "Winning number: " + computerNumber +
+        " | Winning bet: " + winningBet + " Credits";
+
+      showHistory(
+        "Round " + roundNumber +
+        " | Number: " + computerNumber +
+        " | Bet: " + totalBet +
+        " | Return: " + totalReturn +
+        " | Net: " + (netChange > 0 ? "+" : "") + netChange
+      );
+
+      lockInputs(false);
+      startBtn.disabled = false;
+      updateTotal();
+    }
+
+    startBtn.addEventListener("click", function() {
+      if (playing) return;
+
+      const bets = {};
+      let totalBet = 0;
+      let valid = true;
+
+      for (const key in selectedBets) {
+        const amount = selectedBets[key];
+
+        if (!Number.isSafeInteger(amount) || amount <= 0) {
+          valid = false;
+          break;
+        }
+
+        bets[key] = amount;
+        totalBet += amount;
+      }
+
+      if (!valid || totalBet <= 0) {
+        statusText.innerText =
+          "Kam se kam ek number chuno aur valid bet bharo.";
+        return;
+      }
+
+      if (totalBet > balance) {
+        statusText.innerText =
+          "Total bet aapke balance se zyada hai.";
+        return;
+      }
+
+      balance -= totalBet;
+      balanceText.innerText = balance;
+
+      playing = true;
+      roundNumber++;
+
+      lockInputs(true);
+
+      computerText.innerText = "?";
+      resultText.innerText = "⏳ Timer khatam hone ka intezar...";
+      resultText.style.color = "white";
+      totalReturnText.innerText = "0";
+      netChangeText.innerText = "0";
+      statusText.innerText = "Bet lock ho gayi. Ab wait karo.";
+
+      let timeLeft = 10;
+      timerText.innerText = timeLeft;
+
+      timer = setInterval(function() {
+        timeLeft--;
+        timerText.innerText = timeLeft;
+
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          finishRound(bets, totalBet);
+        }
+      }, 1000);
+    });
+
+    resetBtn.addEventListener("click", function() {
+      clearInterval(timer);
+
+      balance = 1000;
+      selectedBets = {};
+      playing = false;
+      roundNumber = 0;
+      history = [];
+
+      timerText.innerText = "10";
+      statusText.innerText = "Numbers select karke bet bharo.";
+      computerText.innerText = "?";
+      resultText.innerText = "Result ka intezar hai";
+      resultText.style.color = "white";
+      totalReturnText.innerText = "0";
+      netChangeText.innerText = "0";
+      historyBox.innerText = "Abhi koi round nahi hua.";
+
+      createNumbers();
+      lockInputs(false);
+      updateTotal();
+    });
+
+    createNumbers();
+    updateTotal();
+  </script>
+</body>
+</html>
